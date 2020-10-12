@@ -1,0 +1,4 @@
+ employeeid ,      name       ,  position  , registered ,    ssn
+101, Carla Espinosa  , Head Nurse ,T,111111110
+102, Laverne Roberts , Nurse      ,F,222222220
+103, Paul Flowers    , Nurse      ,F,333333330

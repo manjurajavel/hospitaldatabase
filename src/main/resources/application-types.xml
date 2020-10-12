@@ -1,0 +1,45 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<types:mule xmlns:types="http://www.mulesoft.org/schema/mule/types">
+  <types:catalog>
+    <types:type name="csvbatch" format="csv">
+      <types:shape format="weave" example="examples/peoples.csv"><![CDATA[%dw 2.0
+
+type csvbatch = Array<{|  id__c: Number,   name__c: String,   gender__c: String|}> {"isQuotedString": "false",
+"header": "true",
+"headerLineNumber": "0"}
+
+]]></types:shape>
+      <types:properties>
+        <types:property name="headerLineNumber" value="0"/>
+        <types:property name="header" value="true"/>
+        <types:property name="isQuotedString" value="false"/>
+      </types:properties>
+    </types:type>
+    <types:type name="xmlbatch" format="xml">
+      <types:example format="xml" element="root" location="examples/peoples.xml"/>
+    </types:type>
+    <types:type name="nursecsv" format="csv">
+      <types:shape format="weave" example="examples/nurse.csv"><![CDATA[%dw 2.0
+
+type nursecsv = Array<{|  " employeeid ": Number,   "      name       ": String,   "  position  ": String,   " registered ": Boolean,   "    ssn": Number|}> {"isQuotedString": "false",
+"header": "true",
+"headerLineNumber": "0"}
+
+]]></types:shape>
+      <types:properties>
+        <types:property name="headerLineNumber" value="0"/>
+        <types:property name="header" value="true"/>
+        <types:property name="isQuotedString" value="false"/>
+      </types:properties>
+    </types:type>
+  </types:catalog>
+  <types:enrichment select="#2904b827-b1e3-4868-969d-bfbc538852dd">
+    <types:processor-declaration>
+      <types:input-event>
+        <types:message>
+          <types:payload type="nursecsv"/>
+        </types:message>
+      </types:input-event>
+    </types:processor-declaration>
+  </types:enrichment>
+</types:mule>

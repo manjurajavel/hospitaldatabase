@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:validation="http://www.mulesoft.org/schema/mule/validation" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/validation http://www.mulesoft.org/schema/mule/validation/current/mule-validation.xsd">
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="0113f370-3c9c-4ac5-9237-09c31a3205f2" >
+		<http:listener-connection host="0.0.0.0" port="8081" />
+	</http:listener-config>
+	<db:config name="Database_Config" doc:name="Database Config" doc:id="cca1078a-c917-4f7b-999a-2a317c12063b" >
+		<db:my-sql-connection host="localhost" port="3306" user="root" password="Mysql@123" database="hotel_db" />
+	</db:config>
+	<validation:config name="Validation_Config" doc:name="Validation Config" doc:id="1e2bc6d7-3dfc-4c79-ac1f-b988152d2698" />
+	<flow name="purge_based_uriFlow" doc:id="fa38d2c1-e679-4e18-9e48-026013eecbee" >
+		<http:listener doc:name="Listener" doc:id="264ae08e-42df-488f-a2d2-a8dd619c6e5e" config-ref="HTTP_Listener_config" path="/purge/{date}"/>
+		<logger level="INFO" doc:name="Entrylog" doc:id="119d646a-9581-483b-84f2-ffcd44d87c1e" message='Start delete after : #[attributes.uriParams.date]'/>
+		<until-successful maxRetries="5" doc:name="Until Successful" doc:id="2e8ef3c9-1c5b-4cf3-a6d8-42894459a1b5" millisBetweenRetries="10000">
+			<try doc:name="Try" doc:id="a2499261-852d-462e-acb4-b4a833a81faa" transactionalAction="ALWAYS_BEGIN">
+				<db:delete doc:name="Delete Booking by date" doc:id="3b9fba96-6e95-48ba-8187-30345e20c7ec" config-ref="Database_Config">
+					<db:sql><![CDATA[delete from booking where datefrom <=:fromdate]]></db:sql>
+				<db:input-parameters><![CDATA[#[{"fromdate" : attributes.uriParams.date}]]]></db:input-parameters>
+			</db:delete>
+				<error-handler >
+					<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="3f0b5d4e-7944-42de-950a-5c61fa815a1d" type="DB:QUERY_EXECUTION">
+						<set-payload value='queryerror' doc:name="queryerror Payload" doc:id="1c881c69-2d9a-4222-a988-16a92c4cca60" />
+					</on-error-continue>
+				</error-handler>
+			</try>
+		</until-successful>
+		<choice doc:name="Choice" doc:id="cc1bcc47-2f19-43bd-b353-7cac73a7d793" >
+			<when expression="#[payload == 0]">
+				<set-payload value='"No record selected for Purge"' doc:name="Set Payload" doc:id="667a5c85-dd8a-4d9d-b355-71ccfc126991" />
+			</when>
+			<when expression='#[payload == "queryerror"]' >
+				<set-payload value='Error in entered URI Pram. Enter URI param in Format "YYYY-MM-DD" Or "YY-MM-DD"' doc:name="Set Payload" doc:id="08c30c10-05b6-43c6-8c05-04ec820e3cca" />
+			</when>
+			<otherwise >
+				<ee:transform doc:name="Transform Message" doc:id="42446465-3bf5-4f9c-aedf-a4f001f2c779">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"status":200,
+	"message" :"success",
+	"Total Purged Record" : payload
+}
+]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+			</otherwise>
+		</choice>
+		<error-handler>
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="7e544872-be5d-4118-be86-3467ca15e748" type="ANY">
+				<ee:transform doc:name="Transform Message" doc:id="8080c6ff-3b23-42b5-bf57-c2f7f180963e" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"errortype" :error.errorType.identifier,
+	"errornamespace":error.errorType.parentErrorType.namespace,
+	"errordescription" : error.detailedDescription
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+</mule>
